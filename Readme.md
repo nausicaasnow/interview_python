@@ -699,21 +699,21 @@ d =  [1, 2, 3, 4, ['a', 'b']]
 
 ## 24 Python垃圾回收机制
 
+Python 3.6 垃圾回收机制，并不总是回收无引用的对象，而是对小于512B的对象保留在内存中。
+
 Python GC主要使用引用计数（reference counting）来跟踪和回收垃圾。在引用计数的基础上，通过“标记-清除”（mark and sweep）解决容器对象可能产生的循环引用问题，通过“分代回收”（generation collection）以空间换时间的方法提高垃圾回收效率。
 
 ### 1 引用计数
 
 PyObject是每个对象必有的内容，其中`ob_refcnt`就是做为引用计数。当一个对象有新的引用时，它的`ob_refcnt`就会增加，当引用它的对象被删除，它的`ob_refcnt`就会减少.引用计数为0时，该对象生命就结束了。
 
-优点:
+The main reason why CPython uses reference counting is historical. There are a lot of debates nowadays about weaknesses of such technique. Some people claim that modern garbage collection algorithms can be more efficient without reference counting at all. The reference counting algorithm has a lot of issues, such as circular references, thread locking and memory and performance overhead.
 
-1. 简单
-2. 实时性
+Variables, which declared outside of functions, classes, and blocks are called globals. Usually, such variables live until the end of the Python's process. Thus, the reference count of objects, which are referred by globals, never drops to 0.
 
-缺点:
+Variables, which are defined inside blocks (e.g., in a function or class) have a local scope (i.e., they are local to its block). If Python interpreter exits from the block, it destroys all references created inside the block.
 
-1. 维护引用计数消耗资源
-2. 循环引用
+In the example above, the del statement removes the references to our objects (i.e., decreases reference count by 1). After Python executes the del statement, our objects are no longer accessible from Python code. However, such objects are still sitting in the memory, that's because they are still referencing each other and the reference count of each object is 1. You can visually explore such relations using objgraph module.
 
 ### 2 标记-清除机制
 
@@ -721,12 +721,16 @@ PyObject是每个对象必有的内容，其中`ob_refcnt`就是做为引用计�
 
 ### 3 分代技术
 
+The GC classifies container objects into three generations. Every new object starts in the first generation. If an object survives a garbage collection round, it moves to the older (higher) generation. Lower generations are collected more often than higher. Because most of the newly created objects die young, it improves GC performance and reduces the GC pause time.
+
 分代回收的整体思想是：将系统中的所有内存块根据其存活时间划分为不同的集合，每个集合就成为一个“代”，垃圾收集频率随着“代”的存活时间的增大而减小，存活时间通常利用经过几次垃圾回收来度量。
 
 Python默认定义了三代对象集合，索引数越大，对象存活时间越长。
 
 举例：
 当某些内存块M经过了3次垃圾收集的清洗之后还存活时，我们就将内存块M划到一个集合A中去，而新分配的内存都划分到集合B中去。当垃圾收集开始工作时，大多数情况都只对集合B进行垃圾回收，而对集合A进行垃圾回收要隔相当长一段时间后才进行，这就使得垃圾收集机制需要处理的内存少了，效率自然就提高了。在这个过程中，集合B中的某些内存块由于存活时间长而会被转移到集合A中，当然，集合A中实际上也存在一些垃圾，这些垃圾的回收会因为这种分代的机制而被延迟。
+
+[GC details from Quora](https://www.quora.com/How-does-garbage-collection-in-Python-work-What-are-the-pros-and-cons)
 
 ## 25 Python的List
 
